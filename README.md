@@ -107,7 +107,7 @@ Implementar una red **DMVPN Fase 2** con **IKEv1**, en topología hub-and-spoke 
 
 ## 🔧 Configuración
 
-Ver archivo: `Configuración para VPN DMVPN Fase 2 IKEv1.txt`
+Ver archivo: `files/config.txt`
 
 ---
 
@@ -132,7 +132,7 @@ Se espera:
 ## 📸 Capturas de Pantalla
 
 ```
-evidencias/
+images/
 ├── 01_topologia.png
 ├── 02_show_dmvpn.png
 ├── 03_show_ip_nhrp.png
