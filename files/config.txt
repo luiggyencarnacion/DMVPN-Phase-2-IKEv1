@@ -1,0 +1,459 @@
+################################################################################
+#  CONFIGURACIÓN — VPN DMVPN FASE 2 IKEv1
+################################################################################
+
+
+──────────────────────────────────────────
+▶ DISPOSITIVO: ISP-CLARO
+──────────────────────────────────────────
+enable
+conf t
+hostname ISP-CLARO
+no ip domain-lookup
+banner motd # LUIGGY ENCARNACION 2025-0663 | EL ACCESO NO AUTORIZADO ESTA RESTRINGIDO #
+username Admin privilege 15 secret cisco
+service password-encryption
+
+ip domain-name redlocal.com
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+line console 0
+ exec-timeout 5 0
+ logging synchronous
+
+line vty 0 4
+ login local
+ transport input ssh
+ exec-timeout 5 0
+ logging synchronous
+
+exit
+
+! Interfaz hacia Spoke R-Este
+interface GigabitEthernet0/1
+ ip address 20.6.63.2 255.255.255.252
+ no shutdown
+
+! Interfaz hacia Hub R-Central
+interface GigabitEthernet0/2
+ ip address 30.6.63.2 255.255.255.252
+ no shutdown
+
+! Interfaz hacia Spoke R-Oeste
+interface GigabitEthernet0/3
+ ip address 40.6.63.2 255.255.255.252
+ no shutdown
+
+exit
+
+! Interfaz loopback para pruebas
+int lo0
+ ip address 50.50.50.50 255.255.255.255
+exit
+
+! Rutas estáticas a las LANs
+ip route 10.63.10.0 255.255.255.0 20.6.63.1
+ip route 10.63.20.0 255.255.255.0 30.6.63.1
+ip route 10.63.30.0 255.255.255.0 40.6.63.1
+
+end
+wr
+
+
+──────────────────────────────────────────
+▶ DISPOSITIVO: R-CENTRAL-HUB
+──────────────────────────────────────────
+enable
+conf t
+hostname R-CENTRAL-HUB
+no ip domain-lookup
+banner motd # LUIGGY ENCARNACION 2025-0663 #
+username Admin privilege 15 secret cisco
+service password-encryption
+
+ip domain-name redlocal.com
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+! VPN DMVPN Fase 2 IKEv1
+crypto isakmp policy 10
+ encryption aes 256
+ hash sha
+ authentication pre-share
+ group 14
+ lifetime 86400
+
+crypto isakmp key Luiggy20250663! address 0.0.0.0 0.0.0.0
+
+crypto ipsec transform-set DMVPN-SET esp-aes 256 esp-sha-hmac
+ mode transport
+exit
+
+crypto ipsec profile DMVPN-PROFILE
+ set transform-set DMVPN-SET
+exit
+
+! Interfaz túnel VPN
+interface Tunnel0
+ ip address 192.168.63.1 255.255.255.0
+ no ip redirects
+ ip nhrp authentication 20250663
+ ip nhrp network-id 63
+ ip nhrp map multicast dynamic
+ tunnel source GigabitEthernet0/2
+ tunnel mode gre multipoint
+ ip ospf network point-to-multipoint
+ tunnel protection ipsec profile DMVPN-PROFILE
+ no shutdown
+
+! LAN
+interface GigabitEthernet0/0
+ ip address 10.63.20.1 255.255.255.0
+ no shutdown
+ duplex full
+
+! WAN
+interface GigabitEthernet0/2
+ ip address 30.6.63.1 255.255.255.252
+ no shutdown
+
+! DHCP
+ip dhcp excluded-address 10.63.20.1 10.63.20.9
+
+ip dhcp pool SITEB
+ network 10.63.20.0 255.255.255.0
+ default-router 10.63.20.1
+ dns-server 8.8.8.8
+ domain-name redlocal.com
+
+! Enrutamiento dinámico
+router ospf 1
+ router-id 1.1.1.1
+ passive-interface GigabitEthernet0/0
+ network 10.63.20.0 0.0.0.255 area 0
+ network 192.168.63.0 0.0.0.255 area 0
+
+! Ruta default
+ip route 0.0.0.0 0.0.0.0 30.6.63.2
+
+end
+wr
+
+
+──────────────────────────────────────────
+▶ DISPOSITIVO: R-ESTE-SPOKE
+──────────────────────────────────────────
+enable
+conf t
+hostname R-ESTE-SPOKE
+no ip domain-lookup
+banner motd # LUIGGY ENCARNACION 2025-0663 #
+username Admin privilege 15 secret cisco
+service password-encryption
+
+ip domain-name redlocal.com
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+! VPN DMVPN Fase 2 IKEv1
+crypto isakmp policy 10
+ encryption aes 256
+ hash sha
+ authentication pre-share
+ group 14
+ lifetime 86400
+
+crypto isakmp key Luiggy20250663! address 0.0.0.0 0.0.0.0
+
+crypto ipsec transform-set DMVPN-SET esp-aes 256 esp-sha-hmac
+ mode transport
+exit
+
+crypto ipsec profile DMVPN-PROFILE
+ set transform-set DMVPN-SET
+exit
+
+! Interfaz túnel VPN
+interface Tunnel0
+ ip address 192.168.63.2 255.255.255.0
+ no ip redirects
+ ip nhrp authentication 20250663
+ ip nhrp network-id 63
+ ip nhrp map 192.168.63.1 30.6.63.1
+ ip nhrp map multicast 30.6.63.1
+ ip nhrp nhs 192.168.63.1
+ ip ospf network point-to-multipoint
+ tunnel source GigabitEthernet0/1
+ tunnel mode gre multipoint
+ tunnel protection ipsec profile DMVPN-PROFILE
+ no shutdown
+
+! LAN
+interface GigabitEthernet0/0
+ ip address 10.63.10.1 255.255.255.0
+ no shutdown
+ duplex full
+
+! WAN
+interface GigabitEthernet0/1
+ ip address 20.6.63.1 255.255.255.252
+ no shutdown
+
+! DHCP
+ip dhcp excluded-address 10.63.10.1 10.63.10.9
+
+ip dhcp pool SITEA
+ network 10.63.10.0 255.255.255.0
+ default-router 10.63.10.1
+ dns-server 8.8.8.8
+ domain-name redlocal.com
+
+! Enrutamiento dinámico
+router ospf 1
+ router-id 2.2.2.2
+ passive-interface GigabitEthernet0/0
+ network 10.63.10.0 0.0.0.255 area 0
+ network 192.168.63.0 0.0.0.255 area 0
+
+! Ruta default
+ip route 0.0.0.0 0.0.0.0 20.6.63.2
+
+end
+wr
+
+
+──────────────────────────────────────────
+▶ DISPOSITIVO: R-OESTE-SPOKE
+──────────────────────────────────────────
+enable
+conf t
+hostname R-OESTE-SPOKE
+no ip domain-lookup
+banner motd # LUIGGY ENCARNACION 2025-0663 #
+username Admin privilege 15 secret cisco
+service password-encryption
+
+ip domain-name redlocal.com
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+! VPN DMVPN Fase 2 IKEv1
+crypto isakmp policy 10
+ encryption aes 256
+ hash sha
+ authentication pre-share
+ group 14
+ lifetime 86400
+
+crypto isakmp key Luiggy20250663! address 0.0.0.0 0.0.0.0
+
+crypto ipsec transform-set DMVPN-SET esp-aes 256 esp-sha-hmac
+ mode transport
+exit
+
+crypto ipsec profile DMVPN-PROFILE
+ set transform-set DMVPN-SET
+exit
+
+! Interfaz túnel VPN
+interface Tunnel0
+ ip address 192.168.63.3 255.255.255.0
+ no ip redirects
+ ip nhrp authentication 20250663
+ ip nhrp network-id 63
+ ip nhrp map 192.168.63.1 30.6.63.1
+ ip nhrp map multicast 30.6.63.1
+ ip nhrp nhs 192.168.63.1
+ ip ospf network point-to-multipoint
+ tunnel source GigabitEthernet0/3
+ tunnel mode gre multipoint
+ tunnel protection ipsec profile DMVPN-PROFILE
+ no shutdown
+
+! LAN
+interface GigabitEthernet0/0
+ ip address 10.63.30.1 255.255.255.0
+ no shutdown
+ duplex full
+
+! WAN
+interface GigabitEthernet0/3
+ ip address 40.6.63.1 255.255.255.252
+ no shutdown
+
+! DHCP
+ip dhcp excluded-address 10.63.30.1 10.63.30.9
+
+ip dhcp pool SITEC
+ network 10.63.30.0 255.255.255.0
+ default-router 10.63.30.1
+ dns-server 8.8.8.8
+ domain-name redlocal.com
+
+! Enrutamiento dinámico
+router ospf 1
+ router-id 3.3.3.3
+ passive-interface GigabitEthernet0/0
+ network 10.63.30.0 0.0.0.255 area 0
+ network 192.168.63.0 0.0.0.255 area 0
+
+! Ruta default
+ip route 0.0.0.0 0.0.0.0 40.6.63.2
+
+end
+wr
+
+
+──────────────────────────────────────────
+▶ DISPOSITIVO: SW-1
+──────────────────────────────────────────
+en
+conf t
+no ip domain-lookup
+hostname SW-1
+banner motd # LUIGGY ENCARNACION 2025-0663 | EL ACCESO NO AUTORIZADO ESTA RESTRINGIDO#
+username Admin privilege 15 secret cisco
+service password-encryption
+
+ip domain-name redlocal.com
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+line console 0
+ exec-timeout 5 0
+ logging synchronous
+line vty 0 4
+ login local
+ exec-timeout 5 0
+ logging synchronous
+ transport input ssh
+exit
+
+interface vlan1
+ ip address 10.63.10.2 255.255.255.0
+ no shutdown
+
+ip default-gateway 10.63.10.1
+
+int gig0/0
+ no negotiation auto
+ duplex full
+
+end
+wr
+
+
+──────────────────────────────────────────
+▶ DISPOSITIVO: SW-2
+──────────────────────────────────────────
+en
+conf t
+no ip domain-lookup
+hostname SW-2
+banner motd # LUIGGY ENCARNACION 2025-0663 | EL ACCESO NO AUTORIZADO ESTA RESTRINGIDO#
+username Admin privilege 15 secret cisco
+service password-encryption
+
+ip domain-name redlocal.com
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+line console 0
+ exec-timeout 5 0
+ logging synchronous
+line vty 0 4
+ login local
+ exec-timeout 5 0
+ logging synchronous
+ transport input ssh
+exit
+
+interface vlan1
+ ip address 10.63.20.2 255.255.255.0
+ no shutdown
+
+ip default-gateway 10.63.20.1
+
+int gig0/0
+ no negotiation auto
+ duplex full
+
+end
+wr
+
+
+──────────────────────────────────────────
+▶ DISPOSITIVO: SW-3
+──────────────────────────────────────────
+en
+conf t
+no ip domain-lookup
+hostname SW-3
+banner motd # LUIGGY ENCARNACION 2025-0663 | EL ACCESO NO AUTORIZADO ESTA RESTRINGIDO#
+username Admin privilege 15 secret cisco
+service password-encryption
+
+ip domain-name redlocal.com
+crypto key generate rsa general-keys modulus 1024
+ip ssh version 2
+ip ssh time-out 60
+ip ssh authentication-retries 3
+
+line console 0
+ exec-timeout 5 0
+ logging synchronous
+line vty 0 4
+ login local
+ exec-timeout 5 0
+ logging synchronous
+ transport input ssh
+exit
+
+interface vlan1
+ ip address 10.63.30.2 255.255.255.0
+ no shutdown
+
+ip default-gateway 10.63.30.1
+
+int gig0/0
+ no negotiation auto
+ duplex full
+
+end
+wr
+
+
+################################################################################
+#  COMPROBACIÓN — VPN DMVPN FASE 2 IKEv1
+################################################################################
+
+! Verificar DMVPN
+show dmvpn
+
+! Verificar NHRP
+show ip nhrp
+
+! Mostrar ruta al túnel
+show ip route
+
+! Vecinos OSPF
+show ip ospf neighbor
+
+! Verificar que el túnel se levantó
+show crypto isakmp sa
+
+! Verificar los contadores IPSec
+show crypto ipsec sa
