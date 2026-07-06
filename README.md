@@ -134,16 +134,13 @@ Se espera:
 ```
 evidencias/
 ├── 01_topologia.png
-├── 02_crypto_isakmp_key_wildcard.png
-├── 03_interface_tunnel0_hub.png
-├── 04_interface_tunnel0_spoke.png
-├── 05_show_dmvpn.png
-├── 06_show_ip_nhrp.png
-├── 07_show_ip_ospf_neighbor.png
-├── 08_show_ip_route.png
-├── 09_show_crypto_isakmp_sa.png
-├── 10_show_crypto_ipsec_sa.png
-└── 11_ping_pc1_pc3.png
+├── 02_show_dmvpn.png
+├── 03_show_ip_nhrp.png
+├── 04_show_ip_ospf_neighbor.png
+├── 05_show_ip_route.png
+├── 06_show_crypto_isakmp_sa.png
+├── 07_show_crypto_ipsec_sa.png
+└── 08_wireshark_esp_trafico.png
 ```
 
 ---
